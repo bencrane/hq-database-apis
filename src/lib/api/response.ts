@@ -44,7 +44,7 @@ export function notFoundResponse(resource: string) {
 
 export function validationErrorResponse(error: ZodError) {
   return errorResponse("VALIDATION_ERROR", "Invalid request data", 400, {
-    issues: error.errors,
+    issues: error.issues,
   });
 }
 
