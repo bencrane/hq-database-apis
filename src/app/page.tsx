@@ -11,7 +11,7 @@ export default function Home() {
     { method: "GET", path: "/api/people/discovery", description: "Search discovery people" },
     { method: "GET", path: "/api/people/discovery/{slug}", description: "Get discovery person by slug" },
     { method: "GET", path: "/api/people/by-past-company", description: "Find people by past employer" },
-    { method: "GET", path: "/api/leads/{domain}", description: "Get leads matching company's ICP" },
+    { method: "GET", path: "/api/leads/{slug}", description: "Get leads matching company's ICP" },
     { method: "GET", path: "/api/workflows", description: "List workflows" },
     { method: "GET", path: "/api/workflows/{slug}", description: "Get workflow by slug" },
     { method: "GET", path: "/api/openapi", description: "OpenAPI specification" },

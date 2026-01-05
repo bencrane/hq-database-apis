@@ -7,30 +7,31 @@ import {
 } from "@/lib/api/response";
 import type { CompanyCriteria, PersonCriteria, Lead } from "@/lib/schemas/leads";
 
-type RouteContext = { params: Promise<{ domain: string }> };
+type RouteContext = { params: Promise<{ slug: string }> };
 
 /**
- * GET /api/leads/{domain}
+ * GET /api/leads/{slug}
  * Get leads matching a company's ICP criteria.
  */
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    const { domain } = await context.params;
-    const decodedDomain = decodeURIComponent(domain).toLowerCase();
+    const { slug } = await context.params;
+    const decodedSlug = decodeURIComponent(slug).toLowerCase();
 
-    // 1. Look up ICP for this domain
+    // 1. Look up ICP by slug
     const { data: icp, error: icpError } = await referenceDb
       .from("company_icp")
-      .select("domain, company_criteria, person_criteria")
-      .eq("domain", decodedDomain)
+      .select("slug, domain, company_criteria, person_criteria")
+      .eq("slug", decodedSlug)
       .maybeSingle();
 
     if (icpError) throw icpError;
 
     if (!icp) {
-      return notFoundResponse("ICP for domain");
+      return notFoundResponse("ICP for slug");
     }
 
+    const icpDomain = icp.domain;
     const companyCriteria = icp.company_criteria as CompanyCriteria | null;
     const personCriteria = icp.person_criteria as PersonCriteria | null;
 
@@ -39,7 +40,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     if (matchingCompanyDomains.length === 0) {
       return jsonResponse({
-        domain: decodedDomain,
+        slug: decodedSlug,
+        domain: icpDomain,
         company_name: null,
         icp: {
           company_criteria: companyCriteria,
@@ -57,11 +59,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const { data: icpCompany } = await coreDb
       .from("companies")
       .select("name")
-      .eq("domain", decodedDomain)
+      .eq("domain", icpDomain)
       .maybeSingle();
 
     return jsonResponse({
-      domain: decodedDomain,
+      slug: decodedSlug,
+      domain: icpDomain,
       company_name: icpCompany?.name ?? null,
       icp: {
         company_criteria: companyCriteria,

@@ -386,12 +386,12 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/leads/{domain}",
+  path: "/api/leads/{slug}",
   summary: "Get leads for a company",
-  description: "Get leads (people) matching a company's ICP criteria.",
+  description: "Get leads (people) matching a company's ICP criteria. Use the company slug (e.g., 'ramp', 'mutiny', 'vanta').",
   tags: ["Leads"],
   request: {
-    params: z.object({ domain: z.string().openapi({ example: "ramp.com" }) }),
+    params: z.object({ slug: z.string().openapi({ example: "ramp" }) }),
   },
   responses: {
     200: {
@@ -399,7 +399,7 @@ registry.registerPath({
       content: { "application/json": { schema: LeadsResponseSchema } },
     },
     404: {
-      description: "ICP not found for domain",
+      description: "ICP not found for slug",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
   },

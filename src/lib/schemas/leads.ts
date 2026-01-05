@@ -56,6 +56,7 @@ export const LeadSchema = z
 
 export const LeadsResponseSchema = z
   .object({
+    slug: z.string(),
     domain: z.string(),
     company_name: z.string().nullable(),
     icp: ICPSchema,
