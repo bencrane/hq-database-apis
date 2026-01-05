@@ -21,6 +21,9 @@ import {
   PersonWithDetailsSchema,
   WorkflowSchema,
   WorkflowSearchQuerySchema,
+  LeadsResponseSchema,
+  LeadSchema,
+  ICPSchema,
 } from "@/lib/schemas";
 
 // Create registry
@@ -40,6 +43,9 @@ registry.register("PersonDiscovery", PersonDiscoverySchema);
 registry.register("PersonWithDetails", PersonWithDetailsSchema);
 registry.register("PersonWithPastExperience", PersonWithPastExperienceSchema);
 registry.register("Workflow", WorkflowSchema);
+registry.register("Lead", LeadSchema);
+registry.register("ICP", ICPSchema);
+registry.register("LeadsResponse", LeadsResponseSchema);
 
 // ============================================================
 // Helper: Paginated Response Schema
@@ -375,6 +381,31 @@ registry.registerPath({
 });
 
 // ============================================================
+// Leads Endpoints
+// ============================================================
+
+registry.registerPath({
+  method: "get",
+  path: "/api/leads/{domain}",
+  summary: "Get leads for a company",
+  description: "Get leads (people) matching a company's ICP criteria.",
+  tags: ["Leads"],
+  request: {
+    params: z.object({ domain: z.string().openapi({ example: "ramp.com" }) }),
+  },
+  responses: {
+    200: {
+      description: "Leads matching ICP",
+      content: { "application/json": { schema: LeadsResponseSchema } },
+    },
+    404: {
+      description: "ICP not found for domain",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+// ============================================================
 // Generate OpenAPI Document
 // ============================================================
 
@@ -397,6 +428,7 @@ export function generateOpenAPIDocument() {
       { name: "Companies", description: "Company firmographics and discovery data" },
       { name: "People", description: "Person profiles, experience, and education" },
       { name: "Workflows", description: "Enrichment workflow definitions" },
+      { name: "Leads", description: "ICP-matched leads for prospecting" },
     ],
   });
 }

@@ -29,7 +29,7 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseKey, {
  *     .from("person_profile")
  *     .select("*");
  */
-export function getSchemaClient(schema: "reference" | "raw" | "extracted") {
+export function getSchemaClient(schema: "core" | "reference" | "raw" | "extracted") {
   return createClient(supabaseUrl, supabaseKey, {
     auth: {
       autoRefreshToken: false,
@@ -42,6 +42,7 @@ export function getSchemaClient(schema: "reference" | "raw" | "extracted") {
 }
 
 // Pre-configured clients for each schema
+export const coreDb = getSchemaClient("core");
 export const referenceDb = getSchemaClient("reference");
 export const rawDb = getSchemaClient("raw");
 export const extractedDb = getSchemaClient("extracted");

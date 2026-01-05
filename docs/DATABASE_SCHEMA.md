@@ -73,6 +73,63 @@ Defines available enrichment workflows.
 | description | text | YES | Human-readable description |
 | created_at | timestamptz | YES | Record creation timestamp |
 
+### company_icp
+
+Ideal Customer Profile (ICP) definitions for companies. Defines what target companies and people a given company wants to reach.
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | uuid | NO | Primary key |
+| domain | text | NO | The company who owns this ICP (unique) |
+| company_criteria | jsonb | YES | Criteria for target companies |
+| person_criteria | jsonb | YES | Criteria for target people |
+| notes | text | YES | Notes or tags |
+| created_at | timestamptz | NO | Record creation timestamp |
+| updated_at | timestamptz | NO | Record update timestamp |
+
+**company_criteria structure:**
+```json
+{
+  "industries": ["Software Development", "Technology"],
+  "size_buckets": ["51-200", "201-500"],
+  "employee_count_min": 50,
+  "employee_count_max": 500,
+  "countries": ["United States", "Canada"],
+  "founded_min": 2015,
+  "founded_max": null
+}
+```
+
+**person_criteria structure:**
+```json
+{
+  "title_contains_any": ["VP", "Director", "Head of", "Chief"],
+  "title_contains_all": ["Marketing", "Demand Gen", "Growth"],
+  "seniority": ["VP", "Director", "C-Suite"]
+}
+```
+
+**Indexes:**
+- `idx_company_icp_domain` on `domain`
+
+### company_customers
+
+Known customers of a company (for "worked at customer" signal).
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | uuid | NO | Primary key |
+| domain | text | NO | The company whose customers these are |
+| customer_domain | text | NO | The customer's domain |
+| customer_name | text | YES | Customer company name |
+| source | text | YES | Source of data (e.g., "manual", "scraped") |
+| notes | text | YES | Notes or tags |
+| created_at | timestamptz | NO | Record creation timestamp |
+
+**Indexes:**
+- `idx_company_customers_domain` on `domain`
+- `idx_company_customers_customer_domain` on `customer_domain`
+
 ---
 
 ## raw Schema
@@ -100,6 +157,24 @@ Raw person enrichment payloads.
 | identifier | text | NO | Person identifier (LinkedIn URL) |
 | payload | jsonb | NO | Raw JSON payload from provider |
 | created_at | timestamptz | YES | Record creation timestamp |
+
+### icp_payloads
+
+Raw ICP generation payloads from AI/Clay.
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | uuid | NO | Primary key |
+| domain | text | NO | Company domain this ICP is for |
+| workflow_slug | text | NO | Workflow that generated this |
+| provider | text | NO | Data provider |
+| platform | text | NO | Execution platform |
+| payload_type | text | NO | Type of payload |
+| raw_payload | jsonb | NO | Raw JSON payload |
+| created_at | timestamptz | NO | Record creation timestamp |
+
+**Indexes:**
+- `idx_raw_icp_payloads_domain` on `domain`
 
 ---
 
