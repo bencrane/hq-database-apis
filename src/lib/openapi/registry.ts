@@ -6,6 +6,10 @@ import { z } from "zod";
 import {
   PaginationQuerySchema,
   ErrorResponseSchema,
+  CoreCompanySchema,
+  CoreCompanySearchQuerySchema,
+  CorePersonSchema,
+  CorePersonSearchQuerySchema,
   CompanyFirmographicsSchema,
   CompanyFirmographicsSearchQuerySchema,
   CompanyDiscoverySchema,
@@ -34,6 +38,8 @@ export const registry = new OpenAPIRegistry();
 // ============================================================
 
 registry.register("ErrorResponse", ErrorResponseSchema);
+registry.register("CoreCompany", CoreCompanySchema);
+registry.register("CorePerson", CorePersonSchema);
 registry.register("CompanyFirmographics", CompanyFirmographicsSchema);
 registry.register("CompanyDiscovery", CompanyDiscoverySchema);
 registry.register("PersonProfile", PersonProfileSchema);
@@ -70,6 +76,31 @@ function paginatedResponse<T extends z.ZodTypeAny>(itemSchema: T, name: string) 
 registry.registerPath({
   method: "get",
   path: "/api/companies",
+  summary: "List canonical companies",
+  description: "List canonical company records from core.companies.",
+  tags: ["Companies"],
+  request: {
+    query: PaginationQuerySchema.merge(CoreCompanySearchQuerySchema),
+  },
+  responses: {
+    200: {
+      description: "List of canonical companies",
+      content: {
+        "application/json": {
+          schema: paginatedResponse(CoreCompanySchema, "CoreCompanyList"),
+        },
+      },
+    },
+    400: {
+      description: "Validation error",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/companies/firmo",
   summary: "Search company firmographics",
   description: "Search and list enriched company firmographics data.",
   tags: ["Companies"],
@@ -78,7 +109,7 @@ registry.registerPath({
   },
   responses: {
     200: {
-      description: "List of companies",
+      description: "List of enriched companies",
       content: {
         "application/json": {
           schema: paginatedResponse(CompanyFirmographicsSchema, "CompanyFirmographicsList"),
@@ -94,8 +125,8 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/companies/{domain}",
-  summary: "Get company by domain",
+  path: "/api/companies/firmo/{domain}",
+  summary: "Get enriched company by domain",
   description: "Get a single enriched company by domain.",
   tags: ["Companies"],
   request: {
@@ -103,7 +134,7 @@ registry.registerPath({
   },
   responses: {
     200: {
-      description: "Company details",
+      description: "Enriched company details",
       content: { "application/json": { schema: CompanyFirmographicsSchema } },
     },
     404: {
@@ -166,6 +197,31 @@ registry.registerPath({
 registry.registerPath({
   method: "get",
   path: "/api/people",
+  summary: "List canonical people",
+  description: "List canonical person records from core.people.",
+  tags: ["People"],
+  request: {
+    query: PaginationQuerySchema.merge(CorePersonSearchQuerySchema),
+  },
+  responses: {
+    200: {
+      description: "List of canonical people",
+      content: {
+        "application/json": {
+          schema: paginatedResponse(CorePersonSchema, "CorePersonList"),
+        },
+      },
+    },
+    400: {
+      description: "Validation error",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/people/background",
   summary: "Search person profiles",
   description: "Search and list enriched person profiles.",
   tags: ["People"],
@@ -174,7 +230,7 @@ registry.registerPath({
   },
   responses: {
     200: {
-      description: "List of people",
+      description: "List of enriched people",
       content: {
         "application/json": {
           schema: paginatedResponse(PersonProfileSchema, "PersonProfileList"),
@@ -190,7 +246,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/people/{slug}",
+  path: "/api/people/background/{slug}",
   summary: "Get person by LinkedIn slug",
   description: "Get a person profile with experience and education.",
   tags: ["People"],
@@ -211,7 +267,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/people/{slug}/experience",
+  path: "/api/people/background/{slug}/experience",
   summary: "Get person experience",
   description: "Get experience records for a person.",
   tags: ["People"],
@@ -236,7 +292,7 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/people/{slug}/education",
+  path: "/api/people/background/{slug}/education",
   summary: "Get person education",
   description: "Get education records for a person.",
   tags: ["People"],

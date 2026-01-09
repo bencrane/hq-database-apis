@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
-import { coreDb } from "@/lib/supabase/server";
+import { extractedDb } from "@/lib/supabase/server";
 import {
   PaginationQuerySchema,
-  CoreCompanySearchQuerySchema,
+  CompanyFirmographicsSearchQuerySchema,
 } from "@/lib/schemas";
 import {
   paginatedResponse,
@@ -13,7 +13,7 @@ import {
 
 /**
  * GET /api/companies
- * Search and list canonical company records from core.companies.
+ * Search and list enriched company firmographics.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       return validationErrorResponse(paginationResult.error);
     }
 
-    const searchResult = CoreCompanySearchQuerySchema.safeParse(params);
+    const searchResult = CompanyFirmographicsSearchQuerySchema.safeParse(params);
     if (!searchResult.success) {
       return validationErrorResponse(searchResult.error);
     }
@@ -33,14 +33,35 @@ export async function GET(request: NextRequest) {
     const filters = searchResult.data;
 
     // Build query
-    let query = coreDb.from("companies").select("*", { count: "exact" });
+    let query = extractedDb.from("company_firmographics").select("*", { count: "exact" });
 
     // Apply filters
     if (filters.domain) {
-      query = query.ilike("domain", `%${filters.domain}%`);
+      query = query.ilike("company_domain", `%${filters.domain}%`);
     }
     if (filters.name) {
       query = query.ilike("name", `%${filters.name}%`);
+    }
+    if (filters.industry) {
+      query = query.ilike("industry", `%${filters.industry}%`);
+    }
+    if (filters.country) {
+      query = query.ilike("country", `%${filters.country}%`);
+    }
+    if (filters.size_range) {
+      query = query.eq("size_range", filters.size_range);
+    }
+    if (filters.min_employees !== undefined) {
+      query = query.gte("employee_count", filters.min_employees);
+    }
+    if (filters.max_employees !== undefined) {
+      query = query.lte("employee_count", filters.max_employees);
+    }
+    if (filters.founded_after !== undefined) {
+      query = query.gte("founded_year", filters.founded_after);
+    }
+    if (filters.founded_before !== undefined) {
+      query = query.lte("founded_year", filters.founded_before);
     }
 
     // Execute with pagination
@@ -60,3 +81,4 @@ export async function GET(request: NextRequest) {
     return serverErrorResponse(error);
   }
 }
+

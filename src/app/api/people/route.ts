@@ -1,17 +1,19 @@
 import { NextRequest } from "next/server";
-import { extractedDb } from "@/lib/supabase/server";
-import { PaginationQuerySchema, PersonProfileSearchQuerySchema } from "@/lib/schemas";
+import { coreDb } from "@/lib/supabase/server";
+import {
+  PaginationQuerySchema,
+  CorePersonSearchQuerySchema,
+} from "@/lib/schemas";
 import {
   paginatedResponse,
   validationErrorResponse,
   serverErrorResponse,
   parseQueryParams,
 } from "@/lib/api/response";
-import { extractLinkedInSlug } from "@/lib/utils/linkedin";
 
 /**
  * GET /api/people
- * Search and list enriched person profiles.
+ * Search and list canonical person records from core.people.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -22,7 +24,7 @@ export async function GET(request: NextRequest) {
       return validationErrorResponse(paginationResult.error);
     }
 
-    const searchResult = PersonProfileSearchQuerySchema.safeParse(params);
+    const searchResult = CorePersonSearchQuerySchema.safeParse(params);
     if (!searchResult.success) {
       return validationErrorResponse(searchResult.error);
     }
@@ -31,35 +33,17 @@ export async function GET(request: NextRequest) {
     const filters = searchResult.data;
 
     // Build query
-    let query = extractedDb.from("person_profile").select("*", { count: "exact" });
+    let query = coreDb.from("people").select("*", { count: "exact" });
 
     // Apply filters
     if (filters.linkedin_url) {
-      const slug = extractLinkedInSlug(filters.linkedin_url);
-      if (slug) {
-        query = query.ilike("linkedin_url", `%${slug}%`);
-      }
+      query = query.eq("linkedin_url", filters.linkedin_url);
     }
-    if (filters.slug) {
-      query = query.ilike("linkedin_url", `%/in/${filters.slug}%`);
+    if (filters.linkedin_slug) {
+      query = query.eq("linkedin_slug", filters.linkedin_slug);
     }
-    if (filters.name) {
-      query = query.ilike("full_name", `%${filters.name}%`);
-    }
-    if (filters.title) {
-      query = query.ilike("latest_title", `%${filters.title}%`);
-    }
-    if (filters.company) {
-      query = query.ilike("latest_company", `%${filters.company}%`);
-    }
-    if (filters.company_domain) {
-      query = query.ilike("latest_company_domain", `%${filters.company_domain}%`);
-    }
-    if (filters.location) {
-      query = query.ilike("location_name", `%${filters.location}%`);
-    }
-    if (filters.country) {
-      query = query.ilike("country", `%${filters.country}%`);
+    if (filters.full_name) {
+      query = query.ilike("full_name", `%${filters.full_name}%`);
     }
 
     // Execute with pagination
@@ -79,4 +63,3 @@ export async function GET(request: NextRequest) {
     return serverErrorResponse(error);
   }
 }
-

@@ -1,13 +1,18 @@
+import Link from "next/link";
+import { pathToSlug } from "@/lib/endpoint-docs";
+
 export default function Home() {
   const endpoints = [
-    { method: "GET", path: "/api/companies", description: "Search enriched companies" },
-    { method: "GET", path: "/api/companies/{domain}", description: "Get company by domain" },
+    { method: "GET", path: "/api/companies", description: "List canonical companies" },
+    { method: "GET", path: "/api/companies/firmo", description: "Search enriched companies" },
+    { method: "GET", path: "/api/companies/firmo/{domain}", description: "Get enriched company by domain" },
     { method: "GET", path: "/api/companies/discovery", description: "Search discovery companies" },
     { method: "GET", path: "/api/companies/discovery/{domain}", description: "Get discovery company by domain" },
-    { method: "GET", path: "/api/people", description: "Search enriched profiles" },
-    { method: "GET", path: "/api/people/{slug}", description: "Get person with experience and education" },
-    { method: "GET", path: "/api/people/{slug}/experience", description: "Get experience only" },
-    { method: "GET", path: "/api/people/{slug}/education", description: "Get education only" },
+    { method: "GET", path: "/api/people", description: "List canonical people" },
+    { method: "GET", path: "/api/people/background", description: "Search enriched profiles" },
+    { method: "GET", path: "/api/people/background/{slug}", description: "Get person with experience and education" },
+    { method: "GET", path: "/api/people/background/{slug}/experience", description: "Get experience only" },
+    { method: "GET", path: "/api/people/background/{slug}/education", description: "Get education only" },
     { method: "GET", path: "/api/people/discovery", description: "Search discovery people" },
     { method: "GET", path: "/api/people/discovery/{slug}", description: "Get discovery person by slug" },
     { method: "GET", path: "/api/people/by-past-company", description: "Find people by past employer" },
@@ -48,7 +53,12 @@ export default function Home() {
                   {endpoint.method}
                 </td>
                 <td style={{ padding: "0.5rem 0", fontFamily: "monospace" }}>
-                  {endpoint.path}
+                  <Link
+                    href={`/endpoint/${pathToSlug(endpoint.path)}`}
+                    style={{ color: "#3b82f6", textDecoration: "none" }}
+                  >
+                    {endpoint.path}
+                  </Link>
                 </td>
                 <td style={{ padding: "0.5rem 0", color: "#6b7280" }}>
                   {endpoint.description}
