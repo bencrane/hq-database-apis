@@ -83,7 +83,16 @@ export async function GET(request: NextRequest) {
       hasMore: (count ?? 0) > offset + limit,
     });
   } catch (error) {
-    return serverErrorResponse(error);
+    // Temporary: expose error details for debugging
+    const err = error as { message?: string; code?: string; details?: string };
+    return Response.json({
+      error: {
+        code: "INTERNAL_ERROR",
+        message: err.message ?? "Unknown error",
+        details: err.details ?? null,
+        errorCode: err.code ?? null,
+      }
+    }, { status: 500 });
   }
 }
 
