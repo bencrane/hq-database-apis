@@ -55,7 +55,7 @@ export default function Home() {
                 <td style={{ padding: "0.5rem 0", fontFamily: "monospace" }}>
                   <Link
                     href={`/endpoint/${pathToSlug(endpoint.path)}`}
-                    style={{ color: "#3b82f6", textDecoration: "none" }}
+                    style={{ color: "#60a5fa", textDecoration: "underline", textUnderlineOffset: "2px" }}
                   >
                     {endpoint.path}
                   </Link>
