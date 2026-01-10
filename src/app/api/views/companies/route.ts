@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { apiDb } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/server";
 import { z } from "zod";
 import {
   paginatedResponse,
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     const { limit, offset, ...filters } = result.data;
 
-    let query = apiDb.from("vw_companies").select("*", { count: "exact" });
+    let query = supabaseAdmin.from("vw_companies").select("*", { count: "exact" });
 
     // Apply filters
     if (filters.name) {
