@@ -25,7 +25,7 @@ const PeopleQuerySchema = z.object({
 
 /**
  * GET /api/views/people
- * List people from api.vw_people view with filtering.
+ * List people from public.vw_people view with filtering.
  */
 export async function GET(request: NextRequest) {
   try {
