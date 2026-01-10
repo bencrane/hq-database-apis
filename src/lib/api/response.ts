@@ -54,7 +54,23 @@ export function badRequestResponse(message: string) {
 
 export function serverErrorResponse(error: unknown) {
   console.error("Server error:", error);
-  return errorResponse("INTERNAL_ERROR", "An unexpected error occurred", 500);
+
+  // Extract error message for debugging
+  const message = error instanceof Error
+    ? error.message
+    : typeof error === 'object' && error !== null && 'message' in error
+      ? String((error as { message: unknown }).message)
+      : "An unexpected error occurred";
+
+  // In development, include the actual error message
+  const isDev = process.env.NODE_ENV === 'development';
+
+  return errorResponse(
+    "INTERNAL_ERROR",
+    isDev ? message : "An unexpected error occurred",
+    500,
+    isDev ? { debug: String(error) } : undefined
+  );
 }
 
 export function parseQueryParams(searchParams: URLSearchParams) {

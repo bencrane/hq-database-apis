@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/server";
+import { extractedDb } from "@/lib/supabase/server";
 import { z } from "zod";
 import {
   paginatedResponse,
@@ -26,7 +26,7 @@ const CompaniesQuerySchema = z.object({
 
 /**
  * GET /api/views/companies
- * List companies from api.vw_companies view with filtering.
+ * List companies from extracted.company_firmographics with filtering.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -39,14 +39,15 @@ export async function GET(request: NextRequest) {
 
     const { limit, offset, ...filters } = result.data;
 
-    let query = supabaseAdmin.from("vw_companies").select("*", { count: "exact" });
+    // Query company_firmographics from extracted schema
+    let query = extractedDb.from("company_firmographics").select("*", { count: "exact" });
 
     // Apply filters
     if (filters.name) {
       query = query.ilike("name", `%${filters.name}%`);
     }
     if (filters.domain) {
-      query = query.ilike("domain", `%${filters.domain}%`);
+      query = query.ilike("company_domain", `%${filters.domain}%`);
     }
     if (filters.industry) {
       query = query.ilike("industry", `%${filters.industry}%`);
@@ -76,7 +77,31 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
-    return paginatedResponse(data ?? [], {
+    // Transform data to match expected response format
+    const transformedData = (data ?? []).map((company) => ({
+      id: company.id,
+      domain: company.company_domain,
+      linkedin_url: company.linkedin_url,
+      linkedin_slug: company.linkedin_slug,
+      name: company.name,
+      description: company.description,
+      website: company.website,
+      logo_url: company.logo_url,
+      company_type: company.company_type,
+      industry: company.industry,
+      founded_year: company.founded_year,
+      size_range: company.size_range,
+      employee_count: company.employee_count,
+      country: company.country,
+      locality: company.locality,
+      primary_location: company.primary_location,
+      linkedin_followers: company.follower_count,
+      specialties: company.specialties,
+      source_last_refresh: company.source_last_refresh,
+      created_at: company.created_at,
+    }));
+
+    return paginatedResponse(transformedData, {
       total: count ?? 0,
       limit,
       offset,
