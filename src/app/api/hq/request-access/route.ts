@@ -112,8 +112,17 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("request-access error:", error);
+    const err = error as { message?: string; code?: string; details?: string; hint?: string };
     return corsJson(
-      { error: { code: "INTERNAL_ERROR", message: "An unexpected error occurred" } },
+      {
+        error: {
+          code: "INTERNAL_ERROR",
+          message: err.message || "An unexpected error occurred",
+          details: err.details || null,
+          hint: err.hint || null,
+          pgCode: err.code || null,
+        }
+      },
       500
     );
   }
