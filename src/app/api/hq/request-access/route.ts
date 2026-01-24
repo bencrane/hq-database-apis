@@ -1,13 +1,26 @@
 // TODO: Add rate limiting to prevent abuse
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { hqCoreDb } from "@/lib/supabase/server";
-import {
-  jsonResponse,
-  validationErrorResponse,
-  serverErrorResponse,
-} from "@/lib/api/response";
 import { RequestAccessSchema } from "@/lib/api/hq/schemas";
 import { randomUUID } from "crypto";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+function corsJson(data: unknown, status = 200) {
+  return NextResponse.json(data, { status, headers: corsHeaders });
+}
+
+/**
+ * OPTIONS /api/hq/request-access
+ * Handle CORS preflight requests.
+ */
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
+}
 
 /**
  * POST /api/hq/request-access
@@ -19,7 +32,10 @@ export async function POST(request: NextRequest) {
     const result = RequestAccessSchema.safeParse(body);
 
     if (!result.success) {
-      return validationErrorResponse(result.error);
+      return corsJson(
+        { error: { code: "VALIDATION_ERROR", message: "Invalid email", details: result.error.issues } },
+        400
+      );
     }
 
     const { email } = result.data;
@@ -38,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     // No matching org found
     if (!org) {
-      return jsonResponse({
+      return corsJson({
         status: "pending",
         message: "We'll review your request and be in touch",
       });
@@ -60,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     // Return existing valid invite
     if (existingInvite) {
-      return jsonResponse({
+      return corsJson({
         status: "approved",
         token: existingInvite.token,
         org_name: org.name,
@@ -89,12 +105,16 @@ export async function POST(request: NextRequest) {
       throw createError;
     }
 
-    return jsonResponse({
+    return corsJson({
       status: "approved",
       token: newInvite.token,
       org_name: org.name,
     });
   } catch (error) {
-    return serverErrorResponse(error);
+    console.error("request-access error:", error);
+    return corsJson(
+      { error: { code: "INTERNAL_ERROR", message: "An unexpected error occurred" } },
+      500
+    );
   }
 }
