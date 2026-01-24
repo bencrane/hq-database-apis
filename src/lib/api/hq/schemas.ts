@@ -68,3 +68,11 @@ export const PaginationSchema = z.object({
 export const UserIdQuerySchema = z.object({
   user_id: z.string().uuid("user_id must be a valid UUID"),
 });
+
+// =============================================================================
+// Access Request Schemas
+// =============================================================================
+
+export const RequestAccessSchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
