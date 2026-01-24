@@ -1,6 +1,6 @@
 // TODO: Add auth middleware to verify admin access
 import { NextRequest } from "next/server";
-import { hqCoreDb } from "@/lib/supabase/server";
+import { getHqCoreDb } from "@/lib/supabase/server";
 import {
   paginatedResponse,
   jsonResponse,
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     const { limit, offset } = result.data;
 
-    const { data, error, count } = await hqCoreDb
+    const { data, error, count } = await getHqCoreDb()
       .from("orgs")
       .select("*", { count: "exact" })
       .order("created_at", { ascending: false })
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     const { name, slug } = result.data;
 
-    const { data, error } = await hqCoreDb
+    const { data, error } = await getHqCoreDb()
       .from("orgs")
       .insert({ name, slug })
       .select()

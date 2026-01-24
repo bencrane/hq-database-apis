@@ -1,6 +1,6 @@
 // TODO: Add auth middleware to verify org access
 import { NextRequest } from "next/server";
-import { hqCoreDb, hqAccountsDb } from "@/lib/supabase/server";
+import { getHqCoreDb, getHqAccountsDb } from "@/lib/supabase/server";
 import {
   paginatedResponse,
   jsonResponse,
@@ -16,7 +16,7 @@ interface RouteParams {
 }
 
 async function verifyOrgExists(org_id: string): Promise<boolean> {
-  const { data, error } = await hqCoreDb
+  const { data, error } = await getHqCoreDb()
     .from("orgs")
     .select("id")
     .eq("id", org_id)
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const { limit, offset } = result.data;
 
-    const { data, error, count } = await hqAccountsDb
+    const { data, error, count } = await getHqAccountsDb()
       .from("linkedin_accounts")
       .select("id, org_id, linkedin_url, created_at, updated_at", { count: "exact" })
       .eq("org_id", org_id)
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       insertData.session_cookie_encrypted = session_cookie_encrypted;
     }
 
-    const { data, error } = await hqAccountsDb
+    const { data, error } = await getHqAccountsDb()
       .from("linkedin_accounts")
       .insert(insertData)
       .select("id, org_id, linkedin_url, created_at, updated_at")

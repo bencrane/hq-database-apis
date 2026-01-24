@@ -1,6 +1,6 @@
 // TODO: Add auth middleware to verify user identity
 import { NextRequest } from "next/server";
-import { hqCoreDb } from "@/lib/supabase/server";
+import { getHqCoreDb } from "@/lib/supabase/server";
 import {
   jsonResponse,
   notFoundResponse,
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     const { user_id } = result.data;
 
-    const { data, error } = await hqCoreDb
+    const { data, error } = await getHqCoreDb()
       .from("org_users")
       .select(
         `

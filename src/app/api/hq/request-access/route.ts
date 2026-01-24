@@ -1,6 +1,6 @@
 // TODO: Add rate limiting to prevent abuse
 import { NextRequest, NextResponse } from "next/server";
-import { hqCoreDb } from "@/lib/supabase/server";
+import { getHqCoreDb } from "@/lib/supabase/server";
 import { RequestAccessSchema } from "@/lib/api/hq/schemas";
 import { randomUUID } from "crypto";
 
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const domain = email.split("@")[1].toLowerCase();
 
     // Look up org by domain
-    const { data: org, error: orgError } = await hqCoreDb
+    const { data: org, error: orgError } = await getHqCoreDb()
       .from("orgs")
       .select("id, name, slug")
       .eq("domain", domain)
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Org found - check for existing pending invite
-    const { data: existingInvite, error: inviteError } = await hqCoreDb
+    const { data: existingInvite, error: inviteError } = await getHqCoreDb()
       .from("invites")
       .select("id, token, expires_at")
       .eq("org_id", org.id)
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 day expiry
 
-    const { data: newInvite, error: createError } = await hqCoreDb
+    const { data: newInvite, error: createError } = await getHqCoreDb()
       .from("invites")
       .insert({
         org_id: org.id,

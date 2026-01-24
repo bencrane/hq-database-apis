@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { coreDb, referenceDb, extractedDb } from "@/lib/supabase/server";
+import { coreDb, referenceDb, rawDb, extractedDb } from "@/lib/supabase/server";
 import {
   jsonResponse,
   notFoundResponse,
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     // 3. Find people at those companies matching person_criteria
-    const leads = await findMatchingPeople(matchingCompanyDomains, personCriteria);
+    const leads = await findMatchingPeople(matchingCompanyDomains, personCriteria, icpDomain);
 
     // 4. Get the company name for the ICP owner from core.companies
     const { data: icpCompany } = await coreDb
@@ -150,7 +150,8 @@ async function findMatchingCompanies(
  */
 async function findMatchingPeople(
   companyDomains: string[],
-  criteria: PersonCriteria | null
+  criteria: PersonCriteria | null,
+  icpDomain: string
 ): Promise<Lead[]> {
   if (companyDomains.length === 0) return [];
 
@@ -178,6 +179,9 @@ async function findMatchingPeople(
   // Get company details for enrichment
   const companyDetailsMap = await getCompanyDetails(companyDomains);
 
+  // Get customer data for the ICP owner
+  const customerData = await getCustomerData(icpDomain);
+
   // Filter by person criteria
   const filtered = people.filter((person) => {
     if (!criteria) return true;
@@ -203,9 +207,37 @@ async function findMatchingPeople(
     return true;
   });
 
-  // Map to Lead format
-  const leads: Lead[] = filtered.slice(0, 50).map((person) => {
+  // Get the final candidate list
+  const candidates = filtered.slice(0, 50);
+
+  // Get past experience for candidates to check "worked at customer" signal
+  const linkedinUrls = candidates.map((p) => p.linkedin_url);
+  const experienceMap = await getPastExperience(linkedinUrls);
+
+  // Map to Lead format with customer signal enrichment
+  const leads: Lead[] = candidates.map((person) => {
     const companyInfo = companyDetailsMap.get(person.latest_company_domain ?? "");
+
+    // Check if person worked at any customer
+    let isWorkedAtCustomer = false;
+    let workedAtCustomerCompany: string | null = null;
+
+    const experiences = experienceMap.get(person.linkedin_url) ?? [];
+    for (const exp of experiences) {
+      // Check by domain first (more reliable)
+      if (exp.company_domain && customerData.domainToName.has(exp.company_domain)) {
+        isWorkedAtCustomer = true;
+        workedAtCustomerCompany = customerData.domainToName.get(exp.company_domain) ?? null;
+        break;
+      }
+      // Fall back to name matching
+      if (exp.company && customerData.customerNames.has(exp.company.toLowerCase())) {
+        isWorkedAtCustomer = true;
+        workedAtCustomerCompany = exp.company;
+        break;
+      }
+    }
+
     return {
       linkedin_url: person.linkedin_url,
       linkedin_slug: person.linkedin_slug,
@@ -215,8 +247,8 @@ async function findMatchingPeople(
       company_domain: person.latest_company_domain,
       company_industry: companyInfo?.industry ?? null,
       company_size: companyInfo?.size_range ?? null,
-      is_worked_at_customer: false,
-      worked_at_customer_company: null,
+      is_worked_at_customer: isWorkedAtCustomer,
+      worked_at_customer_company: workedAtCustomerCompany,
     };
   });
 
@@ -245,6 +277,74 @@ async function getCompanyDetails(
         industry: company.industry,
         size_range: company.size_range,
       });
+    }
+  }
+
+  return map;
+}
+
+/**
+ * Get customer data for a company from raw.manual_company_customers
+ * and extracted.company_customer_claygent.
+ * Returns a map of customer_domain -> customer_name and a set of customer names.
+ */
+async function getCustomerData(
+  icpDomain: string
+): Promise<{ domainToName: Map<string, string>; customerNames: Set<string> }> {
+  const domainToName = new Map<string, string>();
+  const customerNames = new Set<string>();
+
+  // Query raw.manual_company_customers for domain-based matching
+  const { data: manualCustomers } = await rawDb
+    .from("manual_company_customers")
+    .select("company_customer_domain, company_customer_name")
+    .eq("origin_company_domain", icpDomain);
+
+  if (manualCustomers) {
+    for (const c of manualCustomers) {
+      if (c.company_customer_domain) {
+        domainToName.set(c.company_customer_domain, c.company_customer_name);
+      }
+      customerNames.add(c.company_customer_name.toLowerCase());
+    }
+  }
+
+  // Query extracted.company_customer_claygent for name-based matching
+  const { data: claygentCustomers } = await extractedDb
+    .from("company_customer_claygent")
+    .select("company_customer_name")
+    .eq("origin_company_domain", icpDomain);
+
+  if (claygentCustomers) {
+    for (const c of claygentCustomers) {
+      customerNames.add(c.company_customer_name.toLowerCase());
+    }
+  }
+
+  return { domainToName, customerNames };
+}
+
+/**
+ * Get past work experience for a list of people.
+ * Returns a map of linkedin_url -> array of experience records.
+ */
+async function getPastExperience(
+  linkedinUrls: string[]
+): Promise<Map<string, Array<{ company_domain: string | null; company: string | null }>>> {
+  const map = new Map<string, Array<{ company_domain: string | null; company: string | null }>>();
+
+  if (linkedinUrls.length === 0) return map;
+
+  const { data: experiences } = await extractedDb
+    .from("person_experience")
+    .select("linkedin_url, company_domain, company")
+    .in("linkedin_url", linkedinUrls);
+
+  if (experiences) {
+    for (const exp of experiences) {
+      const existing = map.get(exp.linkedin_url) ?? [];
+      existing.push({ company_domain: exp.company_domain, company: exp.company });
+      map.set(exp.linkedin_url, existing);
     }
   }
 

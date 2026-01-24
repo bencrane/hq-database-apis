@@ -478,7 +478,7 @@ export function generateOpenAPIDocument() {
         "experience, education, and discovery data.",
     },
     servers: [
-      { url: "http://localhost:3000", description: "Local development" },
+      { url: "/", description: "Current server" },
     ],
     tags: [
       { name: "Companies", description: "Company firmographics and discovery data" },

@@ -1,6 +1,6 @@
 // TODO: Add auth middleware to verify org access
 import { NextRequest } from "next/server";
-import { hqCoreDb } from "@/lib/supabase/server";
+import { getHqCoreDb } from "@/lib/supabase/server";
 import {
   paginatedResponse,
   jsonResponse,
@@ -16,7 +16,7 @@ interface RouteParams {
 }
 
 async function verifyOrgExists(org_id: string): Promise<boolean> {
-  const { data, error } = await hqCoreDb
+  const { data, error } = await getHqCoreDb()
     .from("orgs")
     .select("id")
     .eq("id", org_id)
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     const { limit, offset } = result.data;
 
-    const { data, error, count } = await hqCoreDb
+    const { data, error, count } = await getHqCoreDb()
       .from("org_users")
       .select("*", { count: "exact" })
       .eq("org_id", org_id)
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const { user_id, role } = result.data;
 
-    const { data, error } = await hqCoreDb
+    const { data, error } = await getHqCoreDb()
       .from("org_users")
       .insert({ org_id, user_id, role })
       .select()
