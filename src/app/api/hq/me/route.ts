@@ -40,7 +40,16 @@ export async function GET(request: NextRequest) {
       `
       )
       .eq("user_id", user_id)
-      .single();
+      .single<{
+        role: string;
+        orgs: {
+          id: string;
+          name: string;
+          slug: string;
+          services_enabled: Record<string, boolean>;
+          status: string;
+        } | null;
+      }>();
 
     if (error) {
       if (error.code === "PGRST116") {
