@@ -4,9 +4,17 @@ This document describes the canonical process for creating API endpoints in this
 
 ---
 
+## CRITICAL: CORS is Required
+
+**Every endpoint called by a frontend MUST have CORS enabled.** Without CORS headers, browser requests from different origins will fail.
+
+This is non-negotiable. If the endpoint will be called from a browser, add CORS.
+
+---
+
 ## Overview
 
-This project uses Next.js App Router with Supabase as the database. All API routes follow a consistent pattern for validation, error handling, and response formatting.
+This project uses Next.js App Router with Supabase as the database. All API routes follow a consistent pattern for validation, error handling, CORS, and response formatting.
 
 ---
 
@@ -100,22 +108,58 @@ src/app/api/
 │       └── route.ts          # GET single, PATCH update, DELETE
 ```
 
-### Route Template
+### CORS Setup (Required for Frontend-Facing Endpoints)
+
+Every route file that will be called from a frontend **must** include:
+
+1. CORS headers constant
+2. `corsJson` helper function
+3. `OPTIONS` handler for preflight requests
+4. Use `corsJson` instead of `jsonResponse` for all responses
+
+```typescript
+import { NextRequest, NextResponse } from "next/server";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+function corsJson(data: unknown, status = 200) {
+  return NextResponse.json(data, { status, headers: corsHeaders });
+}
+
+// Handle preflight requests
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
+}
+```
+
+### Route Template (with CORS)
 
 ```typescript
 // src/app/api/example/route.ts
 
 // TODO: Add auth middleware
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { exampleDb } from "@/lib/supabase/server";
-import {
-  paginatedResponse,
-  jsonResponse,
-  validationErrorResponse,
-  serverErrorResponse,
-  parseQueryParams,
-} from "@/lib/api/response";
+import { parseQueryParams } from "@/lib/api/response";
 import { PaginationSchema, CreateExampleSchema } from "@/lib/api/example/schemas";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+function corsJson(data: unknown, status = 200) {
+  return NextResponse.json(data, { status, headers: corsHeaders });
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
+}
 
 /**
  * GET /api/example
@@ -127,7 +171,10 @@ export async function GET(request: NextRequest) {
     const result = PaginationSchema.safeParse(params);
 
     if (!result.success) {
-      return validationErrorResponse(result.error);
+      return corsJson(
+        { error: { code: "VALIDATION_ERROR", message: "Invalid parameters", details: result.error.issues } },
+        400
+      );
     }
 
     const { limit, offset } = result.data;
@@ -140,14 +187,18 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
-    return paginatedResponse(data ?? [], {
-      total: count ?? 0,
-      limit,
-      offset,
-      hasMore: (count ?? 0) > offset + limit,
+    return corsJson({
+      data: data ?? [],
+      pagination: {
+        total: count ?? 0,
+        limit,
+        offset,
+        hasMore: (count ?? 0) > offset + limit,
+      },
     });
   } catch (error) {
-    return serverErrorResponse(error);
+    console.error("GET /api/example error:", error);
+    return corsJson({ error: { code: "INTERNAL_ERROR", message: "An unexpected error occurred" } }, 500);
   }
 }
 
@@ -161,7 +212,10 @@ export async function POST(request: NextRequest) {
     const result = CreateExampleSchema.safeParse(body);
 
     if (!result.success) {
-      return validationErrorResponse(result.error);
+      return corsJson(
+        { error: { code: "VALIDATION_ERROR", message: "Invalid data", details: result.error.issues } },
+        400
+      );
     }
 
     const { data, error } = await exampleDb
@@ -172,36 +226,42 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       if (error.code === "23505") {
-        return jsonResponse(
-          { error: { code: "CONFLICT", message: "Already exists" } },
-          409
-        );
+        return corsJson({ error: { code: "CONFLICT", message: "Already exists" } }, 409);
       }
       throw error;
     }
 
-    return jsonResponse(data, 201);
+    return corsJson(data, 201);
   } catch (error) {
-    return serverErrorResponse(error);
+    console.error("POST /api/example error:", error);
+    return corsJson({ error: { code: "INTERNAL_ERROR", message: "An unexpected error occurred" } }, 500);
   }
 }
 ```
 
-### Dynamic Route Template
+### Dynamic Route Template (with CORS)
 
 ```typescript
 // src/app/api/example/[id]/route.ts
 
 // TODO: Add auth middleware
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { exampleDb } from "@/lib/supabase/server";
-import {
-  jsonResponse,
-  notFoundResponse,
-  validationErrorResponse,
-  serverErrorResponse,
-} from "@/lib/api/response";
 import { UpdateExampleSchema } from "@/lib/api/example/schemas";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, PATCH, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+function corsJson(data: unknown, status = 200) {
+  return NextResponse.json(data, { status, headers: corsHeaders });
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
+}
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -223,14 +283,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     if (error) {
       if (error.code === "PGRST116") {
-        return notFoundResponse("Example");
+        return corsJson({ error: { code: "NOT_FOUND", message: "Example not found" } }, 404);
       }
       throw error;
     }
 
-    return jsonResponse(data);
+    return corsJson(data);
   } catch (error) {
-    return serverErrorResponse(error);
+    console.error("GET /api/example/[id] error:", error);
+    return corsJson({ error: { code: "INTERNAL_ERROR", message: "An unexpected error occurred" } }, 500);
   }
 }
 
@@ -245,7 +306,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const result = UpdateExampleSchema.safeParse(body);
 
     if (!result.success) {
-      return validationErrorResponse(result.error);
+      return corsJson(
+        { error: { code: "VALIDATION_ERROR", message: "Invalid data", details: result.error.issues } },
+        400
+      );
     }
 
     // Check exists
@@ -256,7 +320,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       .single();
 
     if (checkError || !existing) {
-      return notFoundResponse("Example");
+      return corsJson({ error: { code: "NOT_FOUND", message: "Example not found" } }, 404);
     }
 
     const { data, error } = await exampleDb
@@ -268,9 +332,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (error) throw error;
 
-    return jsonResponse(data);
+    return corsJson(data);
   } catch (error) {
-    return serverErrorResponse(error);
+    console.error("PATCH /api/example/[id] error:", error);
+    return corsJson({ error: { code: "INTERNAL_ERROR", message: "An unexpected error occurred" } }, 500);
   }
 }
 
@@ -291,14 +356,15 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     if (error) {
       if (error.code === "PGRST116") {
-        return notFoundResponse("Example");
+        return corsJson({ error: { code: "NOT_FOUND", message: "Example not found" } }, 404);
       }
       throw error;
     }
 
-    return jsonResponse({ success: true, deleted: data });
+    return corsJson({ success: true, deleted: data });
   } catch (error) {
-    return serverErrorResponse(error);
+    console.error("DELETE /api/example/[id] error:", error);
+    return corsJson({ error: { code: "INTERNAL_ERROR", message: "An unexpected error occurred" } }, 500);
   }
 }
 ```
@@ -377,14 +443,17 @@ const { data } = await db
 
 Before submitting:
 
+- [ ] **CORS enabled** — `corsHeaders`, `corsJson`, and `OPTIONS` handler present
+- [ ] **All responses use `corsJson`** — not `jsonResponse` or `NextResponse.json` directly
 - [ ] TypeScript compiles (`npx tsc --noEmit`)
-- [ ] All handlers have try/catch with `serverErrorResponse`
+- [ ] All handlers have try/catch with error logging and `corsJson` error response
 - [ ] Validation uses Zod schemas with `safeParse`
 - [ ] Parent resources verified for nested routes
 - [ ] Sensitive fields excluded from responses
 - [ ] Auth middleware placeholder comment added
 - [ ] JSDoc comment on each handler
 - [ ] No placeholder code — all functions fully implemented
+- [ ] **Vercel env vars configured** — all required env vars added to Vercel project settings
 
 ---
 
